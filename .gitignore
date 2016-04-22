@@ -1,0 +1,4 @@
+/FreeRTOS/Demo/WIN32-MSVC/Debug/*.obj
+Debug
+/FreeRTOS/Demo/WIN32-MSVC/*.opensdf
+/FreeRTOS/Demo/WIN32-MSVC/*.sdf
