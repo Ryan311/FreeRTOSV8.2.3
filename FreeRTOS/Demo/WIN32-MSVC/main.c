@@ -103,13 +103,52 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+/*-----------------------------------------------------------*/
+
+void vPrintString(const portCHAR *pcString)
+{
+	/* 往stdout中写字符串，使用临界区这种原始的方法实现互斥。 */
+	taskENTER_CRITICAL();
+	{
+		printf("%s", pcString);
+		fflush(stdout);
+	}
+	taskEXIT_CRITICAL();
+
+	/* 允许按任意键停止应用程序运行。实际的应用程序如果有使用到键值，还需要对键盘输入进行保护。 */
+	if (_kbhit())
+	{
+		vTaskEndScheduler();
+	}
+}
+
+void vPrintStringAndNumber(const portCHAR *pcString, portLONG lValue)
+{
+	/* 往stdout中写字符串，使用临界区这种原始的方法实现互斥。 */
+	taskENTER_CRITICAL();
+	{
+		printf("%s  %d\r\n", pcString, lValue);
+		fflush(stdout);
+	}
+	taskEXIT_CRITICAL();
+
+	/* 允许按任意键停止应用程序运行。实际的应用程序如果有使用到键值，还需要对键盘输入进行保护。 */
+	if (_kbhit())
+	{
+		vTaskEndScheduler();
+	}
+}
+
+/*-----------------------------------------------------------*/
+
+
 /* This project provides two demo applications.  A simple blinky style project,
 and a more comprehensive test and demo application.  The
 mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is used to select between the two.
 The simply blinky demo is implemented and described in main_blinky.c.  The more
 comprehensive test and demo application is implemented and described in
 main_full.c. */
-#define mainCREATE_SIMPLE_BLINKY_DEMO_ONLY	0
+#define mainCREATE_SIMPLE_BLINKY_DEMO_ONLY	1
 
 /* This demo uses heap_5.c, and these constants define the sizes of the regions
 that make up the total heap.  This is only done to provide an example of heap_5
@@ -126,6 +165,10 @@ appropriate choice. */
  */
 extern void main_blinky( void );
 extern void main_full( void );
+
+// Rui defined
+extern void main_Task( void );
+extern void main_Queue( void );
 
 /*
  * Some of the RTOS hook (callback) functions only need special processing when
@@ -189,17 +232,19 @@ int main( void )
 	printf( "Uncomment the call to kbhit() in this file to also dump trace with a key press.\r\n" );
 	uiTraceStart();
 
-	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-	of this file. */
+	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top of this file. */
 	#if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
 	{
-		main_blinky();
+		//main_blinky();
+		//main_Task();
+		main_Queue();
 	}
 	#else
 	{
 		main_full();
 	}
 	#endif
+
 
 	return 0;
 }
@@ -219,8 +264,9 @@ void vApplicationMallocFailedHook( void )
 	provide information on how the remaining heap might be fragmented). */
 	vAssertCalled( __LINE__, __FILE__ );
 }
-/*-----------------------------------------------------------*/
 
+/* Declare a variable that will be incremented by the hook function. */
+unsigned long ulIdleCycleCount = 0UL;
 void vApplicationIdleHook( void )
 {
 	/* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
@@ -255,6 +301,8 @@ void vApplicationIdleHook( void )
 		vFullDemoIdleFunction();
 	}
 	#endif
+
+	ulIdleCycleCount++;
 }
 /*-----------------------------------------------------------*/
 

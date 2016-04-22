@@ -172,7 +172,7 @@ static TimerHandle_t xTimer = NULL;
 
 void main_blinky( void )
 {
-const TickType_t xTimerPeriod = pdMS_TO_TICKS( mainTIMER_SEND_FREQUENCY_MS );
+	const TickType_t xTimerPeriod = pdMS_TO_TICKS( mainTIMER_SEND_FREQUENCY_MS );
 
 	/* Create the queue. */
 	xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
@@ -212,9 +212,9 @@ const TickType_t xTimerPeriod = pdMS_TO_TICKS( mainTIMER_SEND_FREQUENCY_MS );
 
 static void prvQueueSendTask( void *pvParameters )
 {
-TickType_t xNextWakeTime;
-const TickType_t xBlockTime = pdMS_TO_TICKS( mainTASK_SEND_FREQUENCY_MS );
-const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TASK;
+	TickType_t xNextWakeTime;
+	const TickType_t xBlockTime = pdMS_TO_TICKS( /*mainTASK_SEND_FREQUENCY_MS*/ 1000 );
+	const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TASK;
 
 	/* Remove compiler warning in the case that configASSERT() is not
 	defined. */
@@ -245,7 +245,7 @@ const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TASK;
 
 static void prvQueueSendTimerCallback( TimerHandle_t xTimerHandle )
 {
-const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TIMER;
+	const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TIMER;
 
 	/* Avoid compiler warnings resulting from the unused parameter. */
 	( void ) xTimerHandle;
@@ -259,7 +259,7 @@ const uint32_t ulValueToSend = mainVALUE_SENT_FROM_TIMER;
 
 static void prvQueueReceiveTask( void *pvParameters )
 {
-unsigned long ulReceivedValue;
+	unsigned long ulReceivedValue;
 
 	/* Remove compiler warning in the case that configASSERT() is not
 	defined. */
