@@ -88,8 +88,7 @@ mission critical applications that require provable dependability.
 * in main.c.
 ******************************************************************************
 *
-* main_Task1() creates one queue, one software timer, and two tasks.  It then
-* starts the scheduler.
+* main_Queue()		Queue test
 *
 */
 
@@ -182,8 +181,8 @@ void main_Queue(void)
 			任务入口参数用于传递发送到队列中的数据。因此其中一个任务往队列中一直写入
 			xStructsToSend[0]，而另一个则往队列中一直写入xStructsToSend[1]。这两个任务的优先级都
 			设为2，高于读队列任务的优先级 */
-			xTaskCreate(vSenderTask, "Sender1", 1000, &(xStructsToSend[0]), 2, NULL);
-			xTaskCreate(vSenderTask, "Sender2", 1000, &(xStructsToSend[1]), 2, NULL);
+			xTaskCreate(vSenderTask, "Sender1", configMINIMAL_STACK_SIZE, &(xStructsToSend[0]), 2, NULL);
+			xTaskCreate(vSenderTask, "Sender2", configMINIMAL_STACK_SIZE, &(xStructsToSend[1]), 2, NULL);
 
 			/* 创建读队列任务。读队列任务优先级设为1，低于写队列任务的优先级。 */
 			xTaskCreate(vReceiverTask, "Receiver", 1000, NULL, 1, NULL);

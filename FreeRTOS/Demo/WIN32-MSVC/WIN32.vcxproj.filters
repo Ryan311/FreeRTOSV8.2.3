@@ -148,6 +148,9 @@
     <ClCompile Include="main_Queue.c">
       <Filter>Demo App Source</Filter>
     </ClCompile>
+    <ClCompile Include="main_IRQ.c">
+      <Filter>Demo App Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FreeRTOSConfig.h">

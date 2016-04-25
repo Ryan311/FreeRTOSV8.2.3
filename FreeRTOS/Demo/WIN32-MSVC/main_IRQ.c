@@ -88,7 +88,7 @@ mission critical applications that require provable dependability.
 * in main.c.
 ******************************************************************************
 *
-* main_Task() Task test
+* main_IRQ() :  set software irq handler not work
 *
 */
 
@@ -101,6 +101,7 @@ mission critical applications that require provable dependability.
 #include "task.h"
 #include "timers.h"
 #include "semphr.h"
+#include "portmacro.h"
 
 /* Priorities at which the tasks are created. */
 #define	mainQUEUE_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
@@ -123,126 +124,97 @@ extern void vPrintStringAndNumber(const portCHAR *pcString, portLONG lValue);
 
 /*-----------------------------------------------------------*/
 
-/*
-* The tasks as described in the comments at the top of this file.
-*/
-static void vTask1(void *pvParameters);
-static void vTask2(void *pvParameters);
 static void vPeriodicTask(void *pvParameters);
+static void vHandlerTask(void *pvParameters);
+static uint32_t vExampleInterruptHandler(void);
 
 /*-----------------------------------------------------------*/
 
-static const char *pcTextForTask1 = "Pass Parameter, Task 1 is running\r\n";
-static const char *pcTextForTask2 = "Pass Parameter, Task 2 is running\t\n";
-static const char *pcTextForPeriodicTask = "Pass Parameter, PeriodicTask is running";
-
-/*-----------------------------------------------------------*/
-static TaskHandle_t xTask1Handle = NULL;
-static TaskHandle_t xTask2Handle = NULL;
 static TaskHandle_t xPeriodicTaskHandle = NULL;
-/* A software timer that is started from the tick hook. */
-static TimerHandle_t xTimer = NULL;
+static SemaphoreHandle_t xBinarySemaphore;
 
-void main_Task(void)
+
+void main_IRQ(void)
 {
-	/* Start the two tasks as described in the comments at the top of this file. */
-	xTaskCreate(vTask1,							/* The function that implements the task. */
-		"vTask1", 								/* The text name assigned to the task - for debug only as it is not used by the kernel. */
-		configMINIMAL_STACK_SIZE, 				/* The size of the stack to allocate to the task. */
-		(void *)pcTextForTask1,					/* The parameter passed to the task - just to check the functionality. */
-		mainQUEUE_TASK_PRIORITY, 				/* The priority assigned to the task. */
-		NULL);									/* The task handle is not required, so NULL is passed. */
+	/* 信号量在使用前都必须先创建。本例中创建了一个二值信号量 */
+	vSemaphoreCreateBinary(xBinarySemaphore);
 
-	//xTaskCreate(vTask2, "vTask2", configMINIMAL_STACK_SIZE, (void *)pcTextForTask2, mainQUEUE_TASK_PRIORITY , NULL);
-	//xTaskCreate(vPeriodicTask, "vPeriodicTask", configMINIMAL_STACK_SIZE, (void *)pcTextForPeriodicTask, mainQUEUE_TASK_PRIORITY + 1, NULL);
+	/* 安装中断服务例程 */
+	//vPortSetInterruptHandler( 1, vExampleInterruptHandler);
 
-	/* Start the tasks and timer running. */
-	vTaskStartScheduler();
+	/* 检查信号量是否成功创建 */
+	if (xBinarySemaphore != NULL)
+	{
+		/* 创建延迟处理任务。此任务将与中断同步。延迟处理任务在创建时,使用了一个较高的优先级，以保证
+		中断退出后会被立即执行。在本例中，为延迟处理任务赋予优先级3 */
+		xTaskCreate(vHandlerTask, "Handler", configMINIMAL_STACK_SIZE, NULL, 3, NULL);
 
-	/* If all is well, the scheduler will now be running, and the following
-	line will never be reached.  If the following line does execute, then
-	there was insufficient FreeRTOS heap memory available for the idle and/or
-	timer tasks	to be created.  See the memory management section on the
-	FreeRTOS web site for more details. */
+		/* 创建一个任务用于周期性产生软件中断。此任务的优先级低于延迟处理任务。每当延迟处理任务切出
+		阻塞态，就会抢占周期任务*/
+		xTaskCreate(vPeriodicTask, "Periodic", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+
+		/* Start the scheduler so the created tasks start executing. */
+		vTaskStartScheduler();
+	}
+
+	/* 如果一切正常，main()函数不会执行到这里，因为调度器已经开始运行任务。但如果程序运行到了这里，
+	很可能是由于系统内存不足而无法创建空闲任务。第五章会提供更多关于内存管理的信息 */
 	for (;;);
 }
 /*-----------------------------------------------------------*/
 
-static void vTask1(void *pvParameters)
-{
-	const char *pcLTaskName = "Local Task Name 1, running\r\n";
-	char *pcPTaskName = (char *)pvParameters;
-	//volatile unsigned long ul;
-
-	/* 和大多数任务一样，该任务处于一个死循环中。 */
-	for (;;)
-	{
-		/* Print out the name of this task. */
-		vPrintString(pcLTaskName);
-		vPrintString(pcPTaskName);
-
-		/* 延迟，以产生一个周期 */
-		//for (ul = 0; ul < mainDELAY_LOOP_COUNT; ul++)
-		//{
-			/* 这个空循环是最原始的延迟实现方式。在循环中不做任何事情。后面的示例程序将采用
-			delay/sleep函数代替这个原始空循环。 */
-		//}
-		xTaskCreate(vTask2, "vTask2", configMINIMAL_STACK_SIZE, pcTextForTask2, mainQUEUE_TASK_PRIORITY + 1, &xTask2Handle);
-		vTaskDelay( 500 / portTICK_RATE_MS );
-		taskYIELD();
-	}
-}
-
-/*-----------------------------------------------------------*/
-
-static void vTask2(void *pvParameters)
-{
-	const char *pcLTaskName = "Local Task Name 2, running\r\n";
-	char *pcPTaskName = (char *)pvParameters;
-	const char *delTaskInfo = "Task2 is running and about to delete itself\r\n";
-	//volatile unsigned long ul;
-
-	/* 和大多数任务一样，该任务处于一个死循环中。 */
-	for (;;)
-	{
-		/* Print out the name of this task. */
-		vPrintString(pcLTaskName);
-		vPrintString(pcPTaskName);
-
-		/* 延迟，以产生一个周期 */
-		//for (ul = 0; ul < mainDELAY_LOOP_COUNT; ul++)
-		//{
-			/* 这个空循环是最原始的延迟实现方式。在循环中不做任何事情。后面的示例程序将采用
-			delay/sleep函数代替这个原始空循环。 */
-		//}
-		
-		//vTaskDelay( 500 / portTICK_RATE_MS );
-		vPrintString(delTaskInfo);
-		vTaskDelete(xTask2Handle);
-		taskYIELD();
-	}
-}
-
-/*-----------------------------------------------------------*/
-extern long ulIdleCycleCount;
 static void vPeriodicTask(void *pvParameters)
 {
-	portTickType xLastWakeTime;
-	char* pcTaskName = (void *)pvParameters;
-
-	/* 初始化xLastWakeTime,之后会在vTaskDelayUntil()中自动更新。 */
-	xLastWakeTime = xTaskGetTickCount();
-
-	/* As per most tasks, this task is implemented in an infinite loop. */
+	(void*)pvParameters;
 	for (;;)
 	{
-		/* Print out the name of this task. */
-		vPrintString("Periodic task is running\r\n");
-		vPrintStringAndNumber(pcTaskName, ulIdleCycleCount);
-
-		/* The task should execute every 10 milliseconds exactly. */
-		vTaskDelayUntil(&xLastWakeTime, ( 100 / portTICK_RATE_MS ));
+		/* 此任务通过每500毫秒产生一个软件中断来”模拟”中断事件 */
+		vTaskDelay(500 / portTICK_RATE_MS);
+		/* 产生中断，并在产生之前和之后输出信息，以便在执行结果中直观直出执行流程 */
+		vPrintString("Periodic task - About to generate an interrupt.\r\n");
+		//__asm{ int 0x00 } /* 这条语句产生中断 */
+		//vPortGenerateSimulatedInterrupt(1);
+		vPrintString("Periodic task - Interrupt generated.\r\n\r\n\r\n");
 	}
+}
+
+static void vHandlerTask(void *pvParameters)
+{
+	(void *)pvParameters;
+	/* As per most tasks, this task is implemented within an infinite loop. */
+	for (;;)
+	{
+		/* 使用信号量等待一个事件。信号量在调度器启动之前，也即此任务执行之前就已被创建。任务被无超
+		时阻塞，所以此函数调用也只会在成功获取信号量之后才会返回。此处也没有必要检测返回值 */
+		xSemaphoreTake(xBinarySemaphore, portMAX_DELAY);
+
+		/* 程序运行到这里时，事件必然已经发生。本例的事件处理只是简单地打印输出一个信息 */
+		vPrintString("Handler task - Processing event.\r\n");
+	}
+}
+
+static uint32_t vExampleInterruptHandler(void)
+{
+	static portBASE_TYPE xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
+	/* 'Give' the semaphore to unblock the task. */
+	xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken);
+
+	if (xHigherPriorityTaskWoken == pdTRUE)
+	{
+		/* 给出信号量以使得等待此信号量的任务解除阻塞。如果解出阻塞的任务的优先级高于当前任务的优先
+		级 – 强制进行一次任务切换，以确保中断直接返回到解出阻塞的任务(优选级更高)。
+
+		说明：在实际使用中，ISR中强制上下文切换的宏依赖于具体移植。此处调用的是基于Open Watcom DOS
+		移植的宏。其它平台下的移植可能有不同的语法要求。对于实际使用的平台，请参如数对应移植自带的示
+		例程序，以决定正确的语法和符号。
+		*/
+		//portSWITCH_CONTEXT();
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	}
+
+	return xHigherPriorityTaskWoken;
 }
 
 /*-----------------------------------------------------------*/

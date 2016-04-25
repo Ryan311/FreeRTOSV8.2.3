@@ -182,6 +182,7 @@
     </ClCompile>
     <ClCompile Include="main_blinky.c" />
     <ClCompile Include="main_full.c" />
+    <ClCompile Include="main_IRQ.c" />
     <ClCompile Include="main_Queue.c" />
     <ClCompile Include="main_Task.c" />
     <ClCompile Include="Run-time-stats-utils.c" />

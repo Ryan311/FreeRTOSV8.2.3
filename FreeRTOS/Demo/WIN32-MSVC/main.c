@@ -169,6 +169,7 @@ extern void main_full( void );
 // Rui defined
 extern void main_Task( void );
 extern void main_Queue( void );
+extern void main_IRQ(void);
 
 /*
  * Some of the RTOS hook (callback) functions only need special processing when
@@ -237,7 +238,8 @@ int main( void )
 	{
 		//main_blinky();
 		//main_Task();
-		main_Queue();
+		//main_Queue();
+		main_IRQ();
 	}
 	#else
 	{
